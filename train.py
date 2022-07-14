@@ -8,7 +8,8 @@ import torchvision.utils as utils
 from torch.autograd import Variable
 from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
-from models import DnCNN
+# from models import DnCNN
+import DnCNN
 from dataset import prepare_data, Dataset
 from utils import *
 
@@ -21,7 +22,9 @@ def main():
     loader_train = DataLoader(dataset=dataset_train, num_workers=4, batch_size=opt.batchSize, shuffle=True)
     print("# of training samples: %d\n" % int(len(dataset_train)))
     # Build model
-    net = DnCNN(channels=1, num_of_layers=opt.num_of_layers)
+    # net = DnCNN(channels=1, num_of_layers=opt.num_of_layers)
+    net = DnCNN.DnCNN(num_layers=opt.num_of_layers)
+
     net.apply(weights_init_kaiming)
     criterion = nn.MSELoss(size_average=False)
     # Move to GPU

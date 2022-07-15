@@ -65,12 +65,14 @@ def main():
             img_train, imgn_train = Variable(img_train.cuda()), Variable(imgn_train.cuda())
             noise = Variable(noise.cuda())
             out_train = model(imgn_train)
-            loss = criterion(out_train, noise) / (imgn_train.size()[0]*2)
+            # loss = criterion(out_train, noise) / (imgn_train.size()[0]*2)
+            loss = criterion(out_train, img_train) / (imgn_train.size()[0]*2)
             loss.backward()
             optimizer.step()
             # results
             model.eval()
-            out_train = torch.clamp(imgn_train-model(imgn_train), 0., 1.)
+            # out_train = torch.clamp(imgn_train-model(imgn_train), 0., 1.)
+            out_train = torch.clamp(model(imgn_train), 0., 1.)
             psnr_train = batch_PSNR(out_train, img_train, 1.)
             print("[epoch %d][%d/%d] loss: %.4f PSNR_train: %.4f" %
                 (epoch+1, i+1, len(loader_train), loss.item(), psnr_train))
@@ -89,7 +91,8 @@ def main():
             noise = torch.FloatTensor(img_val.size()).normal_(mean=0, std=opt.val_noiseL/255.)
             imgn_val = img_val + noise
             img_val, imgn_val = Variable(img_val.cuda(), volatile=True), Variable(imgn_val.cuda(), volatile=True)
-            out_val = torch.clamp(imgn_val-model(imgn_val), 0., 1.)
+            # out_val = torch.clamp(imgn_val-model(imgn_val), 0., 1.)
+            out_val = torch.clamp(model(imgn_val), 0., 1.)
             psnr_val += batch_PSNR(out_val, img_val, 1.)
         psnr_val /= len(dataset_val)
         print("\n[epoch %d] PSNR_val: %.4f" % (epoch+1, psnr_val))

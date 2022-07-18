@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader
 from tensorboardX import SummaryWriter
 # from models import DnCNN
 import DnCNN
+from myLoss import MaxLikelyloss
 from dataset import prepare_data, Dataset
 from utils import *
 
@@ -23,10 +24,16 @@ def main():
     print("# of training samples: %d\n" % int(len(dataset_train)))
     # Build model
     # net = DnCNN(channels=1, num_of_layers=opt.num_of_layers)
-    net = DnCNN.DnCNN(num_layers=opt.num_of_layers)
+    if opt.uncertainty:
+        net = DnCNN.DnCNN(num_layers=opt.num_of_layers, out_channels=2)
+    else:
+        net = DnCNN.DnCNN(num_layers=opt.num_of_layers)
 
     net.apply(weights_init_kaiming)
-    criterion = nn.MSELoss(size_average=False)
+    if opt.uncertainty:
+        criterion = MaxLikelyloss()
+    else:    
+        criterion = nn.MSELoss(size_average=False)
     # Move to GPU
     device_ids = [0]
     model = nn.DataParallel(net, device_ids=device_ids).cuda()
@@ -73,7 +80,7 @@ def main():
             model.eval()
             # out_train = torch.clamp(imgn_train-model(imgn_train), 0., 1.)
             out_train = torch.clamp(model(imgn_train), 0., 1.)
-            psnr_train = batch_PSNR(out_train, img_train, 1.)
+            psnr_train = batch_PSNR(out_train[:,:1], img_train, 1.)
             print("[epoch %d][%d/%d] loss: %.4f PSNR_train: %.4f" %
                 (epoch+1, i+1, len(loader_train), loss.item(), psnr_train))
             # if you are using older version of PyTorch, you may need to change loss.item() to loss.data[0]
@@ -93,7 +100,7 @@ def main():
             img_val, imgn_val = Variable(img_val.cuda(), volatile=True), Variable(imgn_val.cuda(), volatile=True)
             # out_val = torch.clamp(imgn_val-model(imgn_val), 0., 1.)
             out_val = torch.clamp(model(imgn_val), 0., 1.)
-            psnr_val += batch_PSNR(out_val, img_val, 1.)
+            psnr_val += batch_PSNR(out_val[:,:1], img_val, 1.)
         psnr_val /= len(dataset_val)
         print("\n[epoch %d] PSNR_val: %.4f" % (epoch+1, psnr_val))
         writer.add_scalar('PSNR on validation data', psnr_val, epoch)
@@ -109,8 +116,7 @@ def main():
         torch.save(model.state_dict(), os.path.join(opt.outf, 'net.pth'))
 
 if __name__ == "__main__":
-    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
-    os.environ["CUDA_VISIBLE_DEVICES"] = "1"
+    
 
     parser = argparse.ArgumentParser(description="DnCNN")
     parser.add_argument("--preprocess", type=bool, default=False, help='run prepare_data or not')
@@ -123,10 +129,15 @@ if __name__ == "__main__":
     parser.add_argument("--mode", type=str, default="S", help='with known noise level (S) or blind training (B)')
     parser.add_argument("--noiseL", type=float, default=25, help='noise level; ignored when mode=B')
     parser.add_argument("--val_noiseL", type=float, default=25, help='noise level used on validation set')
+    parser.add_argument("--uncertainty", default=False, action='store_true', help='if estimate the uncertainty.')
+    parser.add_argument("--gpu_ids", type=str, default="0", help='specify which gpu to use.')
     opt = parser.parse_args()
 
     print(opt.preprocess)
     print(type(opt.preprocess) ) 
+
+    os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+    os.environ["CUDA_VISIBLE_DEVICES"] = opt.gpu_ids
 
 
     if opt.preprocess:

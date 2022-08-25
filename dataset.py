@@ -30,10 +30,10 @@ def Im2Patch(img, win, stride=1):
 def prepare_data(data_path, patch_size, stride, aug_times=1):
     # train
     print('process training data')
-    scales = [1, 0.9, 0.8, 0.7]
-    files = glob.glob(os.path.join(data_path, 'train', '*.png'))
+    scales = [1]
+    files = glob.glob(os.path.join(data_path, 'DIV2K_valid_HR', '*.png'))
     files.sort()
-    h5f = h5py.File('train.h5', 'w')
+    h5f = h5py.File('/mnt/ddisk/zzheng/train.h5', 'w')
     train_num = 0
     for i in range(len(files)):
         img = cv2.imread(files[i])
@@ -72,11 +72,12 @@ def prepare_data(data_path, patch_size, stride, aug_times=1):
     print('val set, # samples %d\n' % val_num)
 
 class Dataset(udata.Dataset):
-    def __init__(self, train=True):
+    def __init__(self, train=True, train_path='/mnt/ddisk/zzheng/train.h5'):
         super(Dataset, self).__init__()
         self.train = train
+        self.train_path = train_path
         if self.train:
-            h5f = h5py.File('train.h5', 'r')
+            h5f = h5py.File(self.train_path, 'r')
         else:
             h5f = h5py.File('val.h5', 'r')
         self.keys = list(h5f.keys())
@@ -86,7 +87,7 @@ class Dataset(udata.Dataset):
         return len(self.keys)
     def __getitem__(self, index):
         if self.train:
-            h5f = h5py.File('train.h5', 'r')
+            h5f = h5py.File(self.train_path, 'r')
         else:
             h5f = h5py.File('val.h5', 'r')
         key = self.keys[index]
